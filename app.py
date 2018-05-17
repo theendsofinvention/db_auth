@@ -10,7 +10,7 @@ app.secret_key = os.getenv('app_secret')
 
 
 def get_dropbox_auth_flow(web_app_session):
-    redirect_uri = 'http://localhost/dropbox/authorized'
+    redirect_uri = 'https://esme-auth.herokuapp.com/dropbox/authorized'
     return DropboxOAuth2Flow(
         os.getenv('db_key'),
         os.getenv('db_secret'),
