@@ -39,10 +39,13 @@ template = latex_jinja_env.get_template('index.html')
 
 @app.route('/dropbox/login')
 def dropbox_auth_start():
+    print('FUNC dropbox_auth_start FUNC')
     if not all([REDIRECT_URI, DB_KEY, DB_SECRET]):
+        print('missing config value')
         return make_response('', 404)
     global SESSION
     user_id = uuid.uuid4().hex
+    print('user id', user_id)
     session_dict = {}
     flow = DropboxOAuth2Flow(
         DB_KEY,
@@ -51,32 +54,45 @@ def dropbox_auth_start():
         session_dict,
         'dropbox-auth-csrf-token'
     )
+    print('flow', flow)
     authorize_url = flow.start()
+    print('authorize_url', authorize_url)
     token = session_dict['dropbox-auth-csrf-token']
+    print('token', token)
     SESSION[user_id] = session_dict
     SESSION[user_id]['flow'] = flow
     SESSION[user_id]['token'] = token
-    return jsonify({'user_id': user_id, 'authorize_url': authorize_url})
+    print('SESSION', SESSION)
+    result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
+    print('result', result)
+    return result
 
 
 @app.route('/dropbox/authorized')
 def dropbox_authorized():
+    print('FUNC dropbox_authorized FUNC')
+    global SESSION
     token = request.args.get('state')
+    print('token', token)
     for session in SESSION.values():
-        print(session['token'])
+        print('session value', session)
+        print('session["token"]', session['token'])
         if session['token'] == token:
             flow = session['flow']
+            print('flow', flow)
             assert isinstance(flow, DropboxOAuth2Flow)
             user_token = flow.finish(request.args).access_token
             session['user_token'] = user_token
             return template.render(title='Authentication successful', code=user_token, app='ESME', provider='Dropbox')
 
+    print('404')
     return make_response('', 404)
 
 
 @app.route('/tokens/')
 @app.route('/tokens/<user_id>')
 def tokens(user_id=None):
+    global SESSION
     if user_id is None:
         return make_response('', 404)
     if user_id not in SESSION:
