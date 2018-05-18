@@ -7,6 +7,19 @@ import jinja2
 from dropbox import DropboxOAuth2Flow
 from flask import Flask, jsonify, make_response, request, session
 
+TOKENS = {}
+APP_SECRET = os.getenv('app_secret', None)
+REDIRECT_URI = os.getenv('redirect_uri', None)
+DB_KEY = os.getenv('db_key', None)
+DB_SECRET = os.getenv('db_secret', None)
+
+for val_name in {'APP_SECRET', 'REDIRECT_URI', 'DB_KEY', 'DB_SECRET'}:
+    if not globals()[val_name]:
+        raise ValueError(f'missing env value: {val_name}')
+
+app = Flask('db_auth')
+app.secret_key = os.getenv('app_secret')
+
 latex_jinja_env = jinja2.Environment(
     block_start_string='\BLOCK{',
     block_end_string='}',
@@ -23,30 +36,18 @@ latex_jinja_env = jinja2.Environment(
 
 template = latex_jinja_env.get_template('index.html')
 
-app = Flask('db_auth')
-app.secret_key = os.getenv('app_secret')
-
-TOKENS = {}
-
-
-def get_dropbox_auth_flow():
-    redirect_uri = os.getenv('redirect_uri', None)
-    db_key = os.getenv('db_key', None)
-    db_secret = os.getenv('db_secret', None)
-    if not all([redirect_uri, db_key, db_secret]):
-        return make_response('', 404)
-    return DropboxOAuth2Flow(
-        db_key,
-        db_secret,
-        redirect_uri,
-        session,
-        'dropbox-auth-csrf-token'
-    )
-
 
 @app.route('/dropbox/login')
 def dropbox_auth_start():
-    authorize_url = get_dropbox_auth_flow().start()
+    if not all([REDIRECT_URI, DB_KEY, DB_SECRET]):
+        return make_response('', 404)
+    authorize_url = DropboxOAuth2Flow(
+        DB_KEY,
+        DB_SECRET,
+        REDIRECT_URI,
+        session,
+        'dropbox-auth-csrf-token'
+    ).start()
     user_id = session['dropbox-auth-csrf-token']
     return jsonify({'user_id': user_id, 'authorize_url': authorize_url})
 
@@ -61,6 +62,9 @@ def tokens(uuid=None):
     token = TOKENS[uuid]
     del TOKENS[uuid]
     return jsonify({'token': token})
+
+
+r
 
 
 @app.route('/dropbox/authorized')
