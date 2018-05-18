@@ -72,6 +72,7 @@ def dropbox_auth_start():
 def dropbox_authorized():
     print('FUNC dropbox_authorized FUNC')
     global SESSION
+    print('SESSION', SESSION)
     token = request.args.get('state')
     print('token', token)
     for session in SESSION.values():
