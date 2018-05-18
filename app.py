@@ -64,9 +64,6 @@ def tokens(uuid=None):
     return jsonify({'token': token})
 
 
-r
-
-
 @app.route('/dropbox/authorized')
 def dropbox_authorized():
     global TOKENS
