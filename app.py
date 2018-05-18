@@ -5,7 +5,7 @@ import os
 # from flask_api import FlaskAPI, request
 import jinja2
 from dropbox import DropboxOAuth2Flow
-from flask import Flask, jsonify, make_response, redirect, request, session, url_for
+from flask import Flask, jsonify, make_response, request, session
 
 latex_jinja_env = jinja2.Environment(
     block_start_string='\BLOCK{',
@@ -23,10 +23,7 @@ latex_jinja_env = jinja2.Environment(
 
 template = latex_jinja_env.get_template('index.html')
 
-from flask_bootstrap import Bootstrap
-
 app = Flask('db_auth')
-bootstrap = Bootstrap(app)
 app.secret_key = os.getenv('app_secret')
 
 TOKENS = {}
