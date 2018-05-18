@@ -1,13 +1,13 @@
 # coding=utf-8
 
 import os
+import uuid
 
-# from flask_api import FlaskAPI, request
 import jinja2
 from dropbox import DropboxOAuth2Flow
-from flask import Flask, jsonify, make_response, request, session
+from flask import Flask, jsonify, make_response, request
 
-TOKENS = {}
+SESSION = {}
 APP_SECRET = os.getenv('app_secret', None)
 REDIRECT_URI = os.getenv('redirect_uri', None)
 DB_KEY = os.getenv('db_key', None)
@@ -41,36 +41,48 @@ template = latex_jinja_env.get_template('index.html')
 def dropbox_auth_start():
     if not all([REDIRECT_URI, DB_KEY, DB_SECRET]):
         return make_response('', 404)
-    authorize_url = DropboxOAuth2Flow(
+    global SESSION
+    user_id = uuid.uuid4().hex
+    session_dict = {}
+    flow = DropboxOAuth2Flow(
         DB_KEY,
         DB_SECRET,
         REDIRECT_URI,
-        session,
+        session_dict,
         'dropbox-auth-csrf-token'
-    ).start()
-    user_id = session['dropbox-auth-csrf-token']
+    )
+    authorize_url = flow.start()
+    token = session_dict['dropbox-auth-csrf-token']
+    SESSION[user_id] = session_dict
+    SESSION[user_id]['flow'] = flow
+    SESSION[user_id]['token'] = token
     return jsonify({'user_id': user_id, 'authorize_url': authorize_url})
-
-
-@app.route('/tokens/')
-@app.route('/tokens/<uuid>')
-def tokens(uuid=None):
-    if uuid is None:
-        return make_response('', 404)
-    if uuid not in TOKENS:
-        return make_response('', 404)
-    token = TOKENS[uuid]
-    del TOKENS[uuid]
-    return jsonify({'token': token})
 
 
 @app.route('/dropbox/authorized')
 def dropbox_authorized():
-    global TOKENS
-    code = request.args.get('code')
-    uuid = request.args.get('state')
-    TOKENS[uuid] = code
-    return template.render(title='Authentication successful', code=code, app='ESME', provider='Dropbox')
+    token = request.args.get('state')
+    for session in SESSION.values():
+        if session['token'] == token:
+            flow = session['flow']
+            assert isinstance(flow, DropboxOAuth2Flow)
+            user_token = flow.finish(request.args).access_token
+            session['user_token'] = user_token
+            return template.render(title='Authentication successful', code=user_token, app='ESME', provider='Dropbox')
+
+    return make_response('', 404)
+
+
+@app.route('/tokens/')
+@app.route('/tokens/<user_id>')
+def tokens(user_id=None):
+    if user_id is None:
+        return make_response('', 404)
+    if user_id not in SESSION:
+        return make_response('', 404)
+    user_token = SESSION[user_id]['user_token']
+    del SESSION[user_id]['user_token']
+    return jsonify({'token': user_token})
 
 
 @app.route('/')
