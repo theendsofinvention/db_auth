@@ -80,6 +80,8 @@ def tokens(user_id=None):
         return make_response('', 404)
     if user_id not in SESSION:
         return make_response('', 404)
+    if 'user_token' not in SESSION[user_id]:
+        return make_response('', 404)
     user_token = SESSION[user_id]['user_token']
     del SESSION[user_id]['user_token']
     return jsonify({'token': user_token})
