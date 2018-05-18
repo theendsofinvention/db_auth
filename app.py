@@ -63,6 +63,7 @@ def dropbox_auth_start():
 def dropbox_authorized():
     token = request.args.get('state')
     for session in SESSION.values():
+        print(session['token'])
         if session['token'] == token:
             flow = session['flow']
             assert isinstance(flow, DropboxOAuth2Flow)
