@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 
-  <head>
+<head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -9,12 +9,13 @@
     <link href="https://fonts.googleapis.com/css?family=Kavivanar|Roboto|Source+Code+Pro" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
+          integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
 
     <title>\VAR{ title }</title>
-  </head>
+</head>
 
-  <body style="
+<body style="
 
         height: 100%;
         background: url(https://www.hpcf.upr.edu/~abel/phl/star_field_visible_eqt.jpg) no-repeat center fixed;
@@ -23,38 +24,136 @@
         background-size: cover;
         -o-background-size: cover;
         font-family: 'Roboto', sans-serif;
-        color: grey">
-    <div style="
+        color: grey;
+        font-size:24px;">
+<div style="
         min-height: 100%;
         min-height: 100vh;
-
-  display: flex;
-  align-items: center;">
-      <div class="container text-center">
-        <h1 style="color: white; align: center; font-family: 'Kavivanar', cursive;">
-          This was a triumph
+        display: flex;
+        align-items: center;
+        ">
+    <div class="container text-center">
+        <h1 class="text-success"
+            style="align: center; font-family: 'Kavivanar', cursive; font-size:70px; color: white;">
+            This was a triumph!
         </h1>
         <p>Authentication with \VAR{ provider } was successful!</p>
-        <h3 style="color: white; align: center; font-family: 'Kavivanar', cursive;">
-            \VAR{ app } should be able to proceed within a few seconds.
+        <h3 style="color: white; align: center;">
+            <b>\VAR{ app } should be able to proceed within a few seconds.</b>
         </h3>
-        <p>If it fails for some reason, here is your token (keep it secret!):</p>
-        <div class="alert alert-dark" role="alert">
-          <div style="font-family: 'Source Code Pro', monospace;">
-            <code>\VAR{ code }</code>
-          </div>
+        <br>
+        <br>
+        <br>
+        <br>
+        <p>
+            <button class="btn btn-dark" type="button" data-toggle="collapse" data-target="#itFailed"
+                    aria-expanded="false" aria-controls="collapseExample">
+                What? Are you sure? Nothing happened on my end!
+            </button>
+        </p>
+        <div class="collapse" id="itFailed">
+            <div class="card card-body">
+
+                <p>If it fails to grab it automatically, here is your token:</p>
+                <div class="alert alert-dark" role="alert">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-md-auto">
+                                <div style="font-family: 'Source Code Pro', monospace;">
+                                    <code>\VAR{ code }</code>
+                                </div>
+                            </div>
+                            <div class="col text-right">
+                                <button type="button" class="btn btn-default btn-copy js-tooltip js-copy"
+                                        data-toggle="tooltip"
+                                        data-placement="bottom" data-copy="\VAR{ code }" title="Copy to clipboard">
+                                    <!-- icon from google's material design library -->
+                                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" version="1.1" width="24"
+                                         height="24"
+                                         viewBox="0 0 24 24">
+                                        <path d="M17,9H7V7H17M17,13H7V11H17M14,17H7V15H14M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3Z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
 
 
+                    </div>
+
+                </div>
+                <div class="alert alert-danger" role="alert">
+                    You must keep this token secret!
+                </div>
+                <p>Simply copy-paste it in \VAR{ app } manually.</p>
+            </div>
         </div>
-        <p>Simply copy-paste it in \VAR{ app } manually.</p>
-      </div>
-    </div>
 
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
-  </body>
+    </div>
+</div>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous">
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous">
+
+</script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
+        integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+        crossorigin="anonymous">
+
+</script>
+
+<script>
+      function copyToClipboard(text, el) {
+        var copyTest = document.queryCommandSupported('copy');
+        var elOriginalText = el.attr('data-original-title');
+
+        if (copyTest === true) {
+          var copyTextArea = document.createElement("textarea");
+          copyTextArea.value = text;
+          document.body.appendChild(copyTextArea);
+          copyTextArea.select();
+          try {
+            var successful = document.execCommand('copy');
+            var msg = successful ? 'Copied!' : 'Whoops, not copied!';
+            el.attr('data-original-title', msg).tooltip('show');
+          } catch (err) {
+            console.log('Oops, unable to copy');
+          }
+          document.body.removeChild(copyTextArea);
+          el.attr('data-original-title', elOriginalText);
+        } else {
+          // Fallback if browser doesn't support .execCommand('copy')
+          window.prompt("Copy to clipboard: Ctrl+C or Command+C, Enter", text);
+        }
+      }
+
+      $(document).ready(function() {
+        // Initialize
+        // ---------------------------------------------------------------------
+
+        // Tooltips
+        // Requires Bootstrap 3 for functionality
+        $('.js-tooltip').tooltip();
+
+        // Copy to clipboard
+        // Grab any text in the attribute 'data-copy' and pass it to the
+        // copy function
+        $('.js-copy').click(function() {
+          var text = $(this).attr('data-copy');
+          var el = $(this);
+          copyToClipboard(text, el);
+        });
+      });
+
+</script>
+
+</body>
 
 </html>

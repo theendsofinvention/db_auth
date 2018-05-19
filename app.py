@@ -2,92 +2,121 @@
 
 import os
 import uuid
+from urllib.parse import urlencode
 
-import jinja2
+import requests
 from dropbox import DropboxOAuth2Flow
 from flask import Flask, jsonify, make_response, request
 
-SESSION = {}
-APP_SECRET = os.getenv('app_secret', None)
-REDIRECT_URI = os.getenv('redirect_uri', None)
-DB_KEY = os.getenv('db_key', None)
-DB_SECRET = os.getenv('db_secret', None)
-
-for val_name in {'APP_SECRET', 'REDIRECT_URI', 'DB_KEY', 'DB_SECRET'}:
-    if not globals()[val_name]:
-        raise ValueError(f'missing env value: {val_name}')
+from _config import DB_KEY, DB_SECRET, GH_KEY, GH_SECRET, HTML_TEMPLATE, REDIRECT_URI_TEMPLATE, STORE
 
 app = Flask('db_auth')
 app.secret_key = os.getenv('app_secret')
 
-latex_jinja_env = jinja2.Environment(
-    block_start_string='\BLOCK{',
-    block_end_string='}',
-    variable_start_string='\VAR{',
-    variable_end_string='}',
-    comment_start_string='\#{',
-    comment_end_string='}',
-    line_statement_prefix='%%',
-    line_comment_prefix='%#',
-    trim_blocks=True,
-    autoescape=False,
-    loader=jinja2.FileSystemLoader(os.path.abspath('.'))
-)
-
-template = latex_jinja_env.get_template('index.html')
-
 
 @app.route('/dropbox/login')
 def dropbox_auth_start():
-    if not all([REDIRECT_URI, DB_KEY, DB_SECRET]):
-        return make_response('', 404)
-    global SESSION
     user_id = uuid.uuid4().hex
     session_dict = {}
     flow = DropboxOAuth2Flow(
         DB_KEY,
         DB_SECRET,
-        REDIRECT_URI,
+        REDIRECT_URI_TEMPLATE.format(app='dropbox'),
         session_dict,
         'dropbox-auth-csrf-token'
     )
     authorize_url = flow.start()
-    token = session_dict['dropbox-auth-csrf-token']
-    SESSION[user_id] = session_dict
-    SESSION[user_id]['flow'] = flow
-    SESSION[user_id]['token'] = token
+    state = session_dict['dropbox-auth-csrf-token']
+    STORE[user_id] = session_dict
+    STORE[user_id]['flow'] = flow
+    STORE[user_id]['state'] = state
     result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
     return result
 
 
 @app.route('/dropbox/authorized')
 def dropbox_authorized():
-    global SESSION
-    token = request.args.get('state')
-    for session in SESSION.values():
-        if session['token'] == token:
-            flow = session['flow']
+    state = request.args.get('state')
+    for user_store in STORE.values():
+        if user_store['state'] == state:
+            flow = user_store['flow']
             assert isinstance(flow, DropboxOAuth2Flow)
-            user_token = flow.finish(request.args).access_token
-            session['user_token'] = user_token
-            return template.render(title='Authentication successful', code=user_token, app='ESME', provider='Dropbox')
+            access_token = flow.finish(request.args).access_token
+            user_store['access_token'] = access_token
+            return HTML_TEMPLATE.render(
+                title='Authentication successful',
+                code=access_token,
+                app='ESME',
+                provider='Dropbox',
+            )
 
     return make_response('', 404)
+
+
+@app.route('/github/login')
+def github_start():
+    user_id = uuid.uuid4().hex
+    base_url = r'https://github.com/login/oauth/authorize?'
+    params = {
+        'client_id': GH_KEY,
+        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='github'),
+        'scope': 'repo',
+        'state': user_id,
+    }
+    authorize_url = base_url + urlencode(params)
+    STORE[user_id] = {}
+    result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
+    return result
+
+
+@app.route('/github/authorized')
+def github_authorized():
+    user_id = request.args.get('state')
+    if user_id not in STORE:
+        print('ERROR: unknown user')
+        return make_response(''), 404
+
+    code = request.args.get('code')
+    headers = {
+        'Accept': 'application/json',
+    }
+    params = {
+        'client_id': GH_KEY,
+        'client_secret': GH_SECRET,
+        'code': code,
+        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='github'),
+        'state': user_id,
+    }
+    req = requests.post(r'https://github.com/login/oauth/access_token', params=params, headers=headers)
+    if not req.ok:
+        print('ERROR:', req.reason)
+        return make_response(''), 404
+    data = req.json()
+    if 'access_token' not in data:
+        print('ERROR: no token', req.content)
+        return make_response(''), 404
+    access_token = data['access_token']
+    STORE[user_id]['access_token'] = access_token
+    return HTML_TEMPLATE.render(
+        title='Authentication successful',
+        code=access_token,
+        app='ESME',
+        provider='Github',
+    )
 
 
 @app.route('/tokens/')
 @app.route('/tokens/<user_id>')
 def tokens(user_id=None):
-    global SESSION
     if user_id is None:
         return make_response('', 404)
-    if user_id not in SESSION:
+    if user_id not in STORE:
         return make_response('', 404)
-    if 'user_token' not in SESSION[user_id]:
+    if 'access_token' not in STORE[user_id]:
         return make_response('', 404)
-    user_token = SESSION[user_id]['user_token']
-    del SESSION[user_id]['user_token']
-    return jsonify({'token': user_token})
+    access_token = STORE[user_id]['access_token']
+    del STORE[user_id]['access_token']
+    return jsonify({'token': access_token})
 
 
 @app.route('/')
