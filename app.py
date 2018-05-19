@@ -5,6 +5,7 @@ import uuid
 from urllib.parse import urlencode
 
 import requests
+from requests.auth import HTTPBasicAuth
 from dropbox import DropboxOAuth2Flow
 from flask import Flask, jsonify, make_response, request
 
@@ -17,26 +18,60 @@ app.secret_key = os.getenv('app_secret')
 @app.route('/dropbox/login')
 def dropbox_auth_start():
     user_id = uuid.uuid4().hex
-    session_dict = {}
-    flow = DropboxOAuth2Flow(
-        DB_KEY,
-        DB_SECRET,
-        REDIRECT_URI_TEMPLATE.format(app='dropbox'),
-        session_dict,
-        'dropbox-auth-csrf-token'
-    )
-    authorize_url = flow.start()
-    state = session_dict['dropbox-auth-csrf-token']
-    STORE[user_id] = session_dict
-    STORE[user_id]['flow'] = flow
-    STORE[user_id]['state'] = state
+
+    base_url = r'https://www.dropbox.com/1/oauth2/authorize?'
+    params = {
+        'client_id': DB_KEY,
+        'response_type': 'code',
+        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='dropbox'),
+        'state': user_id,
+    }
+    authorize_url = base_url + urlencode(params)
+    STORE[user_id] = {}
     result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
     return result
 
 
 @app.route('/dropbox/authorized')
 def dropbox_authorized():
+    user_id = request.args.get('state')
+    if user_id not in STORE:
+        print('ERROR: unknown user')
+        return make_response(''), 404
+
+    code = request.args.get('code')
+    headers = {
+        'Accept': 'application/json',
+    }
+    params = {
+        'code': code,
+        'grant_type': 'authorization_code',
+        'client_id': DB_KEY,
+        'client_secret': DB_SECRET,
+        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='dropbox'),
+    }
+    print(params)
+    req = requests.post(r'https://api.dropboxapi.com/1/oauth2/token', params=params, headers=headers)
+    print(req.url)
+    # req = requests.post(r'https://api.dropbox.com/1/oauth2/token', params=params)
+    if not req.ok:
+        print('ERROR:', req.reason, req.content)
+        return make_response(''), 404
+    data = req.json()
+    if 'access_token' not in data:
+        print('ERROR: no token', req.content)
+        return make_response(''), 404
+    access_token = data['access_token']
+    STORE[user_id]['access_token'] = access_token
+    return HTML_TEMPLATE.render(
+        title='Authentication successful',
+        code=access_token,
+        app='ESME',
+        provider='Dropbox',
+    )
     state = request.args.get('state')
+    code = request.args.get('state')
+    base_url = r'https://api.dropbox.com/1/oauth2/token'
     for user_store in STORE.values():
         if user_store['state'] == state:
             flow = user_store['flow']
