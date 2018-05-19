@@ -23,10 +23,6 @@ AUTHORIZED_URL = {
 }
 
 
-def _get_login_url(app_name: str) -> str:
-    return LOGIN_URL[app_name]
-
-
 def _get_login_params(app_name: str, user_id: str):
     if app_name == 'dropbox':
         return {
