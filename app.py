@@ -5,8 +5,6 @@ import uuid
 from urllib.parse import urlencode
 
 import requests
-from requests.auth import HTTPBasicAuth
-from dropbox import DropboxOAuth2Flow
 from flask import Flask, jsonify, make_response, request
 
 from _config import DB_KEY, DB_SECRET, GH_KEY, GH_SECRET, HTML_TEMPLATE, REDIRECT_URI_TEMPLATE, STORE
@@ -14,26 +12,70 @@ from _config import DB_KEY, DB_SECRET, GH_KEY, GH_SECRET, HTML_TEMPLATE, REDIREC
 app = Flask('db_auth')
 app.secret_key = os.getenv('app_secret')
 
+LOGIN_URL = {
+    'github': r'https://github.com/login/oauth/authorize?',
+    'dropbox': r'https://www.dropbox.com/1/oauth2/authorize?',
+}
 
-@app.route('/dropbox/login')
-def dropbox_auth_start():
+AUTHORIZED_URL = {
+    'github': r'https://github.com/login/oauth/access_token',
+    'dropbox': r'https://api.dropboxapi.com/1/oauth2/token',
+}
+
+
+def _get_login_url(app_name: str) -> str:
+    return LOGIN_URL[app_name]
+
+
+def _get_login_params(app_name: str, user_id: str):
+    if app_name == 'dropbox':
+        return {
+            'client_id': DB_KEY,
+            'response_type': 'code',
+            'redirect_uri': REDIRECT_URI_TEMPLATE.format(app=app_name),
+            'state': user_id,
+        }
+    elif app_name == 'github':
+        return {
+            'client_id': GH_KEY,
+            'redirect_uri': REDIRECT_URI_TEMPLATE.format(app=app_name),
+            'scope': 'repo',
+            'state': user_id,
+        }
+
+
+def _get_authorized_params(app_name: str, user_id: str, code: str):
+    if app_name == 'github':
+        return {
+            'client_id': GH_KEY,
+            'client_secret': GH_SECRET,
+            'code': code,
+            'redirect_uri': REDIRECT_URI_TEMPLATE.format(app=app_name),
+            'state': user_id,
+        }
+    elif app_name == 'dropbox':
+        return {
+            'code': code,
+            'grant_type': 'authorization_code',
+            'client_id': DB_KEY,
+            'client_secret': DB_SECRET,
+            'redirect_uri': REDIRECT_URI_TEMPLATE.format(app=app_name),
+        }
+
+
+@app.route('/login/<app_name>')
+def login(app_name: str):
     user_id = uuid.uuid4().hex
-
-    base_url = r'https://www.dropbox.com/1/oauth2/authorize?'
-    params = {
-        'client_id': DB_KEY,
-        'response_type': 'code',
-        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='dropbox'),
-        'state': user_id,
-    }
-    authorize_url = base_url + urlencode(params)
+    url = LOGIN_URL[app_name]
+    params = _get_login_params(app_name=app_name, user_id=user_id)
+    authorize_url = url + urlencode(params)
     STORE[user_id] = {}
     result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
     return result
 
 
-@app.route('/dropbox/authorized')
-def dropbox_authorized():
+@app.route('/authorized/<app_name>')
+def authorized(app_name: str):
     user_id = request.args.get('state')
     if user_id not in STORE:
         print('ERROR: unknown user')
@@ -43,86 +85,9 @@ def dropbox_authorized():
     headers = {
         'Accept': 'application/json',
     }
-    params = {
-        'code': code,
-        'grant_type': 'authorization_code',
-        'client_id': DB_KEY,
-        'client_secret': DB_SECRET,
-        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='dropbox'),
-    }
-    print(params)
-    req = requests.post(r'https://api.dropboxapi.com/1/oauth2/token', params=params, headers=headers)
-    print(req.url)
-    # req = requests.post(r'https://api.dropbox.com/1/oauth2/token', params=params)
-    if not req.ok:
-        print('ERROR:', req.reason, req.content)
-        return make_response(''), 404
-    data = req.json()
-    if 'access_token' not in data:
-        print('ERROR: no token', req.content)
-        return make_response(''), 404
-    access_token = data['access_token']
-    STORE[user_id]['access_token'] = access_token
-    return HTML_TEMPLATE.render(
-        title='Authentication successful',
-        code=access_token,
-        app='ESME',
-        provider='Dropbox',
-    )
-    state = request.args.get('state')
-    code = request.args.get('state')
-    base_url = r'https://api.dropbox.com/1/oauth2/token'
-    for user_store in STORE.values():
-        if user_store['state'] == state:
-            flow = user_store['flow']
-            assert isinstance(flow, DropboxOAuth2Flow)
-            access_token = flow.finish(request.args).access_token
-            user_store['access_token'] = access_token
-            return HTML_TEMPLATE.render(
-                title='Authentication successful',
-                code=access_token,
-                app='ESME',
-                provider='Dropbox',
-            )
-
-    return make_response('', 404)
-
-
-@app.route('/github/login')
-def github_start():
-    user_id = uuid.uuid4().hex
-    base_url = r'https://github.com/login/oauth/authorize?'
-    params = {
-        'client_id': GH_KEY,
-        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='github'),
-        'scope': 'repo',
-        'state': user_id,
-    }
-    authorize_url = base_url + urlencode(params)
-    STORE[user_id] = {}
-    result = jsonify({'user_id': user_id, 'authorize_url': authorize_url})
-    return result
-
-
-@app.route('/github/authorized')
-def github_authorized():
-    user_id = request.args.get('state')
-    if user_id not in STORE:
-        print('ERROR: unknown user')
-        return make_response(''), 404
-
-    code = request.args.get('code')
-    headers = {
-        'Accept': 'application/json',
-    }
-    params = {
-        'client_id': GH_KEY,
-        'client_secret': GH_SECRET,
-        'code': code,
-        'redirect_uri': REDIRECT_URI_TEMPLATE.format(app='github'),
-        'state': user_id,
-    }
-    req = requests.post(r'https://github.com/login/oauth/access_token', params=params, headers=headers)
+    params = _get_authorized_params(app_name=app_name, user_id=user_id, code=code)
+    url = AUTHORIZED_URL[app_name]
+    req = requests.post(url, params=params, headers=headers)
     if not req.ok:
         print('ERROR:', req.reason)
         return make_response(''), 404
@@ -136,7 +101,7 @@ def github_authorized():
         title='Authentication successful',
         code=access_token,
         app='ESME',
-        provider='Github',
+        provider=app_name.capitalize(),
     )
 
 
